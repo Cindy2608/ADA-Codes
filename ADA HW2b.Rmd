@@ -1,0 +1,121 @@
+---
+title: "ADA HW2b"
+author: "CC"
+date: "9/2/2020"
+output: html_document
+---
+
+
+1. Import class one survey data from our Github site (https://github.com/kijohnson/ADA-FAll-2020) (The dataset called ‘Class 1 Survey Fall 2020.csv’ is located in the class one folder), calling the R dataframe that you create C1survey.
+
+```{r}
+library(foreign) #for reading spss (read.spss()), stata (read.dta()) and xpt (read.xport()) files
+library(haven) #for reading SPSS (read_sav()), stata (read_dta()), SAS(read_sas()) and xpt (read_xpt()) files
+library(readr) #for reading csv file (read_csv())
+library(knitr)#for creating nicer tables
+library(tidyverse) # for various packages
+```
+
+```{r}
+C1survey <-
+ read_csv("https://raw.githubusercontent.com/kijohnson/ADA-FAll-2020/master/Class%20One/Class%201%20Survey%20Fall%202020.csv")
+```
+
+2. Determine: a. the number of observations (i.e. the number of people who filled out the survey) and b. the number of variables in the dataframe.
+##gives number of rows (observations) and columns (variables)
+```{r}
+dim(C1survey)
+#32 peoples filled out the survey. There is 27 variables.
+```
+
+3. a. Rename the column variables to something shorter and that is descriptive of what the variable is about (for example like_dogs for the ‘Do you like dogs?’ question variable)  b. Display that they are renamed.
+
+## Rename the variables to shorter names in C1survey
+```{r}
+names(C1survey)[2:27]<-c("like_cat", "like_dogs", "item_island", "life_slogan", "fav_day", "bird", "fav_food","fav_drink","fav_season","fav_month","hobby","degree","specialization","prim_software","R_expereince","comfort_coding","time_coding","want_to_learn", "PH_interst","Fav_number","birth_day","birth_month","home_country","home_state","home_city","ed_level") 
+```
+
+## Display the variables names
+```{r}
+varlist<-colnames(C1survey)
+varlist
+```
+
+
+4. Write code to determine and display the number of factor, integer, numerical, and character variables there are in the C1survey dataset.
+
+##Display the variables class 
+```{r}
+table(sapply(C1survey, class))
+```
+
+5. a. Using code, check the bday and bmonth variables for any unusual or missing values. If you find any, b. describe what you will do with the unusual values in a comment before or immediately following the code that does it, and c. after you have cleaned up any unusual values, find the median bday and month. *Note: please make sure that your bday and month variables are numeric before doing statistics
+ 
+##Display variables names and their class
+```{r}
+sapply(C1survey, class)
+# Birth_month and Birth_day are displayed as character but should be diplayed as numerical. I have to identify the values that are questionnable and clean the datatset. Then I have to change the class of the variables from charater to numerical.
+```
+
+# Changing the birth_month variable values from a character to numerical after going through the dataset to identify these values
+```{r}
+C1survey[which(C1survey$birth_month=='March'),]$birth_month <-3
+C1survey[which(C1survey$birth_month=='August'),]$birth_month <-8
+C1survey[which(C1survey$birth_month=='december'),]$birth_month <-12
+```
+
+# Changing the birth_day variable values from a character to numerical after going through the dataset to identify these values
+```{r}
+C1survey[which(C1survey$birth_day=='26-Mar'),]$birth_day <-26
+```
+
+
+## Convert birth_month and birth_day to numerical variables
+```{r}
+C1survey$birth_day<-as.numeric(C1survey$birth_day)
+C1survey$birth_month<-as.numeric(C1survey$birth_month)
+```
+
+
+## Median for birth_day 
+
+```{r}
+summary(C1survey$birth_day)
+# The median of birthday is 18
+```
+
+## Median for birth month
+```{r}
+summary(C1survey$birth_month)
+# The median for birth month is equal to 8 (=August)
+```
+
+6. a. Create a new variable called bseason that gives the season according to Northern Meteorological season in which respondents were born (winter=12/1 to 2/29, spring=3/1 to 5/31, summer=6/1 to 8/31, fall=9/1 to 11/30). b. Using the table function, print a table of Seasons in the columns and bmonths in the rows that allows you to check that the coding is correct c. Sum the columns using the addmargins function to answer the question of how many classmates were born in each season? Include your answer in the code you turn in.
+
+## Creating bseason variable based on season and birth month
+
+```{r}
+C1survey$bseason <- recode(C1survey$birth_month, "12"= "winter", "1"="winter", "2" = "winter", "3" = "spring", "4" = "spring", "5" = "spring", "6" = "summer", "7" = "summer", "8" = "summer","9" = "fall", "10" = "fall", "11" = "fall")
+
+```
+
+##Print table of Seasons to check that the coding is correct 
+```{r}
+revision <- table(C1survey$birth_month,C1survey$bseason)
+revision
+```
+
+##Sum the columns using the addmargins function
+
+```{r}
+addmargins(revision)
+#Among the 32 people that answered the survey, 10 people were born in the fall, 7 people were born in spring, 6 person in winter and 9 in the summer.
+```
+7 What is the most reccurent number among the 32 people answering the survey ?
+
+##Creating a prop table to establish the highest percentage.
+```{r}
+prop.table(table(C1survey$Fav_number))*100
+# The number with the highest percentage is 8
+```
+

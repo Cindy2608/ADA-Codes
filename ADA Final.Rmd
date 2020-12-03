@@ -1,0 +1,229 @@
+---
+title: "ADA Final"
+author: "CC"
+date: "12/3/2020"
+output: html_document
+---
+
+```{r}
+#readr: for read txt file
+#tidyverse: for various packages
+#nnet: Multinomial logistic regresison
+#MASS: Ordinal logistic regression
+#funModeling: for describe function
+#brant: for testing parallel regression assumption
+install.packages("survey")
+library(survey)
+#install.packages("haven")
+library(readr) #for read txt file
+library(survival) #for calculating KM values
+library(survminer)#for pairwise diffs
+library(ggfortify) #for KM curves
+library(ggplot2) #for plotting KM curve
+library(tidyverse) #for various packages
+library(haven) #for read_cs
+library(nnet)
+library(odds.n.ends)
+#install.packages("pacman")
+#check to see if a package is installed, if not it attempts to install the package, and then load all packages
+pacman::p_load(tidyverse, ROCR, odds.n.ends, blorr, lmtest, car) 
+
+#tidyverse:data management and visualization
+#ROCR: plotting ROC curves
+#odds.n.ends: computing sensitivity and specificity for logistic regression
+#blorr: model fits of logistic regression
+#lmtest: likelihood ratio test
+#car: compare coefficients
+#readr: for read txt file
+#tidyverse: for various packages
+#nnet: Multinomial logistic regresison
+library(MASS) #Ordinal logistic regression
+#funModeling: for describe function
+#brant: for testing parallel regression assumption
+pacman::p_load(survival, survminer, tidyverse, readr, lmtest, table1)
+
+```
+
+```{r}
+#Import dataset
+B<-read_xpt("LLCP2019.XPT ")
+
+```
+
+
+```{r}
+ #Create table and keeps only these variables
+ACE<-B[c("ACEDEPRS", "ACEDRINK", "ACEDRUGS", "ACEPRISN", "ACEDIVRC", "ACEPUNCH","ACEHURT1","ACESWEAR","ACETOUCH","ACETTHEM","ACEHVSEX","HIVRISK5","_RFDRHV7","_SMOKER3","COLGSEX","INCOME2")]
+```
+
+```{r}
+# Create categories for ACE
+ACE <- ACE %>%
+  mutate(ACE_cat = case_when(ACEPUNCH %in% c("1","7","9") ~ 0,
+                                ACEHURT1 %in% c("1","7","9") ~ 0,
+                                ACESWEAR %in% c("1","7","9") ~ 0,
+                                ACETOUCH %in% c("1","7","9") ~ 0,
+                                ACETTHEM %in% c("1","7","9") ~ 0,
+                                ACEHVSEX %in% c("1","7","9") ~ 0,
+                              
+                                ACEPUNCH %in% c("2") ~ 1,
+                                ACEHURT1 %in% c("2") ~ 1,
+                                ACESWEAR %in% c("2") ~ 1,
+                                ACETOUCH %in% c("2") ~ 1,
+                                ACETTHEM %in% c("2") ~ 1,
+                                ACEHVSEX %in% c("2") ~ 1,
+                                ACEPUNCH %in% c("3") ~ 2,
+                                ACEHURT1 %in% c("3") ~ 2,
+                                ACESWEAR %in% c("3") ~ 2,
+                                ACETOUCH %in% c("3") ~ 2,
+                                ACETTHEM %in% c("3") ~ 2,
+                                ACEHVSEX %in% c("3") ~ 2),
+                                
+ACE_cat = factor(ACE_cat, 0:2, c("No", "Once","More Than Once")))  
+table(ACE$ACE_cat)
+```
+
+```{r}
+#renames variables in order of appearance
+names(ACE)[12:16]<-c("HR", "heavy_alcohol", "smoke", "sex", "income") 
+```
+
+```{r}
+#Binary health behavior
+ACE <- ACE %>%
+  mutate(BH_binary = case_when(HR %in% c("2","7","9") ~ 0,
+                              heavy_alcohol %in% c("1","9") ~ 0,
+                              smoke %in% c("3","4","9") ~ 0,
+                              HR %in% c("1") ~ 1,
+                              heavy_alcohol %in% c("2") ~ 1,
+                              smoke %in% c("1","2") ~ 1),
+         BH_binary = factor(BH_binary, 0:1, c("No", "Yes")))    
+summary(ACE$BH_binary)
+```
+
+```{r}
+#Category income
+ACE <- ACE %>%
+  mutate(income3L = case_when(income %in% c("1") ~ 0,
+                               income %in% c("2") ~ 1,
+                               income %in% c("3") ~ 2,
+                              income %in% c("4") ~ 3,
+                              income %in% c("5") ~ 4,
+                              income %in% c("6") ~ 5,
+                              income %in% c("7") ~ 6,
+                              income %in% c("8") ~ 7,
+                              income %in% c("77","99") ~ 8),
+                              
+                              
+                              
+         
+                                            
+         income = factor(income, 0:8, c(">10K","10 to <15K", "15 to <20K","20 to <25K", "25 to <35K","35 to <50K","50 to <75K","<75K","others"))) #make it as a factor variable
+summary(ACE$income3L)
+```
+
+```{r}
+#Descriptive Table
+table1(~ BH_binary|ACE_cat, ACE)
+table1(~ income3L|ACE_cat, ACE)
+```
+```{r}
+#Drop the cases with missing values on any variables used for complete case analysis
+Complete <- ACE %>%
+  dplyr::select (c(BH_binary,income3L,ACE_cat )) %>%
+  drop_na() 
+  
+```
+
+```{r}
+#New descriptive Table
+table1(~ BH_binary|ACE_cat, Complete)
+table1(~ income3L|ACE_cat, Complete)
+```
+
+
+```{r}
+#Look at missing rate
+MissingRate <-  1- nrow(Complete)/nrow(ACE)
+
+MissingRate
+```
+
+```{r}
+#PLot
+g <-ggplot(data= ACE,aes(x = ACE_cat, y = income3L )) +
+      geom_boxplot(aes(fill = ACE_cat)) +
+      labs(x = "ACE", y = "income") 
+      theme_bw()
+g+theme(legend.position = "null")      
+
+h<-ggplot(data= ACE,aes(x = BH_binary, y = income3L )) +
+      geom_boxplot(aes(fill = BH_binary)) +
+      labs(x = "Behavior Health", y = "income") +
+      theme_bw()
+h+theme(legend.position = "null")
+```
+
+```{r}
+# Execute a Multinomial logistic regression
+mod1 <- multinom( ACE_cat ~ BH_binary , data=Complete,family="binomiale")
+summary(mod1)
+```
+##The log odds of ONE ACE vs. NO ACE increased by 0.83 in cases where bad health behavior happens compared to no bad health behavior.
+
+```{r}
+##OR between BH and ACE and O 95% CIs
+exp(coef(mod1))
+exp(confint(mod1, level=0.95))
+```
+
+```{r}
+##Install new package
+install.packages("dplyr")
+install.packages("finalfit")
+install.packages("rstan")
+install.packages("boot")
+```
+
+```{r}
+##Analysis Table
+library(finalfit)
+explanatory = 'BH_binary'
+dependent ="ACE_cat"
+ACE %>%
+      finalfit(dependent, explanatory) 
+```
+
+```{r}
+#Adding income for Multinomial  logistic regression
+mod3 <- multinom( ACE_cat ~ BH_binary + income3L , data=Complete)
+summary(mod3)
+```
+
+```{r}
+##OR between BH and ACE and O 95% CIs including Income
+exp(coef(mod3))
+exp(confint(mod3, level=0.95))
+#The odds of being exposed to ACE once relatively to not being exposed are 2.12  times higher in people with bad health behavior comred to people without bad health behavior.
+```
+
+```{r}
+#Multicollinarity
+vif(mod3)
+```
+
+```{r}
+##Final explanatory Table
+library(finalfit)
+explanatory = c('BH_binary',"income3L")
+dependent ="ACE_cat"
+Complete %>%
+        summary_factorlist(dependent, explanatory, 
+  p=TRUE, add_dependent_label=TRUE) -> t1
+knitr::kable(t1, align=c("l", "l", "r", "r", "r"))
+
+## The p-value show that The Behavior Health "no" and income are significant
+```
+
+
+
